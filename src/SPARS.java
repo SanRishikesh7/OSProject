@@ -37,7 +37,7 @@ public class SPARS {
     public void init() {
         // Inititalizing the main memory
         System.out.println("Initializing the main memory\n");
-
+        used_memory =0;
         // Initializing the main memory
         this.M = new MainMemory();
 
@@ -55,6 +55,7 @@ public class SPARS {
 
                 if (buffer[0] == '$' && buffer[1] == 'A' && buffer[2] == 'M' && buffer[3] == 'J') {
                     System.out.println("Program card detected " + buffer[4] + buffer[5] + buffer[6] + buffer[7]);
+                    init();
                     continue;
                 } else if (buffer[0] == '$' && buffer[1] == 'D' && buffer[2] == 'T' && buffer[3] == 'A') {
                     System.out.println("Data card detected");
@@ -71,13 +72,21 @@ public class SPARS {
 
                 System.out.println("Loading the instructions to memory");
                 char memory[][] = M.getMemory();
+
+                
                 for (int i = 0; i < line.length();) {
                     memory[used_memory][i % 4] = buffer[i];
+                    if(buffer[i] == 'H' || buffer[i] == '\0')
+                        used_memory += 10 - (used_memory%10);
+                    
                     i++;
                     if (i % 4 == 0) {
                         used_memory++;
                     }
+
                 }
+                if(used_memory%10==9)
+                    used_memory += 10 - (used_memory%10);
                 M.setMemory(memory);
             }
         } catch (ArrayIndexOutOfBoundsException e) {
