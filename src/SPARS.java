@@ -59,6 +59,7 @@ public class SPARS {
                     continue;
                 } else if (buffer[0] == '$' && buffer[1] == 'D' && buffer[2] == 'T' && buffer[3] == 'A') {
                     System.out.println("Data card detected");
+                    startExecution();
                     continue;
                 } else if (buffer[0] == '$' && buffer[1] == 'E' && buffer[2] == 'N' && buffer[3] == 'D') {
                     System.out.println("End card detected\n");
@@ -88,6 +89,7 @@ public class SPARS {
                 if(used_memory%10==9)
                     used_memory += 10 - (used_memory%10);
                 M.setMemory(memory);
+                printMemory();
             }
         } catch (ArrayIndexOutOfBoundsException e) {
             System.out.println("Memory is full\n");
@@ -96,6 +98,204 @@ public class SPARS {
         }
     }
 
+    private void startExecution() {
+        System.out.println("Starting the execution \n");
+        char memory[][] = M.getMemory();
+        cpu.setIC(0);
+        executeUserProgram(memory);
+    }
+
+    private void executeUserProgram(char[][] memory) {
+       
+        while(true){
+            cpu.setIR(new char[] {
+                memory[cpu.getIC()][0],
+                memory[cpu.getIC()][1],
+                memory[cpu.getIC()][2],
+                memory[cpu.getIC()][3]
+
+            });
+
+            cpu.setIC(cpu.getIC()+1);
+
+            String opcode = cpu.getOpcode();
+            System.out.println("The opcode is : "+opcode+"\n");
+           
+
+            switch(opcode) {
+                case "LR": {
+                        cpu.setR(
+                            new char[] {
+                                memory[cpu.getOperand()][0],
+                                memory[cpu.getOperand()][1],
+                                memory[cpu.getOperand()][2],
+                                memory[cpu.getOperand()][3]
+                            }
+                        );
+                }
+                break;
+                case "SR": {
+                    System.out.println("The operand is : "+cpu.getOperand()+"\n");
+                    char[] arr = cpu.getR();
+                    for(char c: arr) {
+                        System.out.println(c);
+                    }
+                    memory[cpu.getOperand()][0] = arr[0];
+                    memory[cpu.getOperand()][1] = arr[1];
+                    memory[cpu.getOperand()][2] = arr[2];
+                    memory[cpu.getOperand()][3] = arr[3];
+                }
+                break;
+                case "CR": {
+                    if(cpu.getR()[0] == memory[cpu.getOperand()][0] &&
+                    cpu.getR()[1] == memory[cpu.getOperand()][1] &&
+                    cpu.getR()[2] ==  memory[cpu.getOperand()][2] &&
+                    cpu.getR()[3] == memory[cpu.getOperand()][3]
+                    ) {
+                        cpu.setC(true);
+                    }else {
+                        cpu.setC(false);
+                    }
+                }
+                break;
+                case "BT": {
+                    cpu.setIC(cpu.getOperand());
+                }
+                break;
+                case "GD": {
+                   
+                    cpu.setSI(1);
+                    M.setMemory(memory);
+                    MOS();
+
+                }
+                break;
+                case "PD": {
+                     
+                    cpu.setSI(2);
+                    M.setMemory(memory);
+                    MOS();
+                }
+                break;
+                case "H": {
+                     
+                    cpu.setSI(3);
+                    M.setMemory(memory);
+                    MOS();
+                    return;
+                }
+                
+
+                default: {
+                    System.out.println("Invalid opcode");
+                    System.exit(0);
+                }
+            }
+
+            //for looking what is the register value
+            // System.out.println("The General Register is : ");
+            // for(int i=0;i<4;i++)
+            //     System.out.print(cpu.getR()[i]);
+            M.setMemory(memory);
+        }
+        
+    }
+
+
+
+    ////---------For MOS---------////
+    private void MOS() {
+        switch(cpu.getSI()) {
+            case 1: {
+                READ();
+            }
+            break;
+            case 2: {
+                WRITE();
+            }break;
+            case 3: {
+                cpu.setSI(0);
+            }
+            break;
+            default: {
+                System.out.println("Invalid SI");
+                System.exit(0);
+            }
+        }
+    }
+
+    private void WRITE() {
+        //take the data from the memory and put it into the output file
+        StringBuilder line = new StringBuilder();
+        char[][] memory = M.getMemory();
+        int oprand = cpu.getOperand();
+
+        //--converting the las bit to 0
+        if(oprand%10 != 0){
+            //convert that las bit to 0
+            oprand = oprand - (oprand%10);
+            
+        }
+
+        for(int i=oprand; i<oprand+10; i++){
+            for(int j=0; j<4; j++){
+                if(memory[i][j] != '\0')
+                    line.append(memory[i][j]);
+            }
+        }
+
+        try {
+            outputReader.write(line.toString());
+            outputReader.newLine();
+            outputReader.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        cpu.setSI(0);
+    }
+
+    
+
+    private void READ() {
+         String line = "";
+        try {
+             line = inputReader.readLine();
+            if(line == null) {
+                System.out.println("Input file is empty");
+                System.exit(0);
+            }else if(line.equals("$END")){
+                System.out.println("Out of Data Card");
+            }
+            char[] buffer = line.toCharArray();
+            char[][] memory = M.getMemory();
+            int oprand = cpu.getOperand();
+
+            //--converting the las bit to 0
+            if(oprand%10 != 0){
+                //convert that las bit to 0
+                oprand = oprand - (oprand%10);
+                
+            }
+            //putting the whole buffer starting from the given operand address
+            for (int i = 0; i < line.length();) {
+                    memory[oprand][i % 4] = buffer[i];
+                    
+                    i++;
+                    if (i % 4 == 0) {
+                        oprand++;
+                    }
+
+                }
+            M.setMemory(memory);
+        } catch (Exception e) {
+            // TODO: handle exception
+            e.printStackTrace();
+        }
+        cpu.setSI(0);
+
+    }
+
+    ////---------For Printing the MEMORY---------////
     public void printMemory() {
         char m[][] = M.getMemory();
         System.out.println("Printing the memory...\n");
